@@ -162,3 +162,64 @@ if(WIN32 AND TARGET CUDA::cudart)
         $<TARGET_FILE_DIR:${PROJECT_NAME}>
     )
 endif()
+
+# =====================================================================
+# Testing
+# =====================================================================
+option(BUILD_TESTS "Build unit tests" ON)
+
+if(BUILD_TESTS)
+    enable_testing()
+    
+    # Fetch Google Test
+    FetchContent_Declare(
+        googletest
+        GIT_REPOSITORY https://github.com/google/googletest.git
+        GIT_TAG v1.14.0
+    )
+    # For Windows: Prevent overriding the parent project's compiler/linker settings
+    set(gtest_force_shared_crt ON CACHE BOOL "" FORCE)
+    FetchContent_MakeAvailable(googletest)
+    
+    # Create a modified version of ParticleSystem.cpp for testing
+    # We need to prevent CUDA headers from being included
+    configure_file(
+        ${CMAKE_SOURCE_DIR}/src/ParticleSystem.cpp
+        ${CMAKE_BINARY_DIR}/tests/ParticleSystem_mock.cpp
+        COPYONLY
+    )
+    
+    # Test executable
+    add_executable(ParticleSystemTests
+        tests/ParticleSystem_test.cpp
+        tests/cuda_mocks.cpp
+        ${CMAKE_BINARY_DIR}/tests/ParticleSystem_mock.cpp
+    )
+    
+    target_link_libraries(ParticleSystemTests PRIVATE
+        GTest::gtest_main
+        glm::glm
+    )
+    
+    target_include_directories(ParticleSystemTests PRIVATE
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/tests
+    )
+    
+    # Mock CUDA runtime for tests (don't link real CUDA, don't include CUDA headers)
+    target_compile_definitions(ParticleSystemTests PRIVATE
+        UNIT_TEST_MODE=1
+    )
+    
+    # Exclude CUDA toolkit includes from test build
+    # This prevents conflicts between our mocks and real CUDA headers
+    set_target_properties(ParticleSystemTests PROPERTIES
+        CUDA_SEPARABLE_COMPILATION OFF
+    )
+    
+    # Discover tests
+    include(GoogleTest)
+    gtest_discover_tests(ParticleSystemTests)
+    
+    message(STATUS "Unit tests enabled. Run with: ctest")
+endif()
