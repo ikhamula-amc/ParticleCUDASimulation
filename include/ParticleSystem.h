@@ -1,9 +1,16 @@
 #pragma once
 
-#include <glad/glad.h>  // OpenGL loader - must be before cuda_gl_interop
+#ifdef UNIT_TEST_MODE
+    // In test mode, use our mock CUDA headers
+    #include "../tests/cuda_mocks.h"
+#else
+    // In production mode, use real CUDA headers
+    #include <glad/glad.h>  // OpenGL loader - must be before cuda_gl_interop
+    #include <cuda_runtime.h>
+    #include <cuda_gl_interop.h>
+#endif
+
 #include "Particle.h"
-#include <cuda_runtime.h>
-#include <cuda_gl_interop.h>
 
 class ParticleSystem {
 public:
